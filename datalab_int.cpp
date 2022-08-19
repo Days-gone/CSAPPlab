@@ -84,7 +84,7 @@ int logicneg(int x)
 int howmanybits(int x)
 {
     int sign = x >> 31;
-    int b0,b1, b2, b4, b8, b16;
+    int b0, b1, b2, b4, b8, b16;
     x = (~sign & x) | (~x & sign);
     b16 = !!(x >> 16) << 4; // is 0 return 0 else return 1 to show that it i
     x = x >> b16;
@@ -96,9 +96,78 @@ int howmanybits(int x)
     x = x >> b2;
     b1 = !!(x >> 1);
     x = x >> b1;
-    b0 = x ;
+    b0 = x;
     int res = b16 + b8 + b4 + b2 + b1 + b0 + 1; // 1 for sign bit
     return res;
+}
+
+unsigned floatScale2(unsigned x) // return a float multipy by 2
+{
+    unsigned s = x >> 31 & 1;
+    unsigned exp = (x & 0x7F800000) >> 23; // which means that exp 8 bit are all on the right side
+    unsigned frac = (x & 0x7FFFFF);
+    unsigned ret;
+
+    if (exp == 0xFF)
+        return x; // x is infinite so x*2 is still infinite
+    // if the frac isn't all 0 we should return NaN which still return x itself
+
+    if (exp == 0)
+    {
+        if (frac == 0)
+            return frac; // x is 0 so return 2*0 = 0
+        ret = s | (exp << 23) | (frac >> 1);
+        return ret;
+    }
+    exp += 1; // we do this for the formulate situation multipy by 2
+    if (exp == 0xff)
+        return 0x7FFFFFFF; // if x*2 is NaN then we return infinite
+
+    ret = s | (exp << 23) | frac;
+    return ret;
+}
+
+int floatfloattoint(unsigned x)
+{
+    int sign = x >> 31 & 1; // get 0 or 1
+    int exp = (x & 0x7F800000) >> 23;
+    int frac = x & 0x7fffff;
+
+    int result = 0;
+    int E = exp - 127;
+
+    if (E <= 0)
+        return 0;
+    if (E > 31)
+        return 0x80000000;
+
+    // 小数部分其实是2的-i次幂，
+    if (E < 23)
+        result = frac >> (23 - E); //根据阶码对其进行乘积，对剩下部分直接截断
+    else
+        result = frac << (E - 23);
+
+    if (sign == 1)
+        return ~result + 1;
+    else
+        return result;
+}
+
+unsigned float2power(int x)
+{
+    int exp;
+    unsigned ret;
+
+    if (x < -149)
+        return 0;
+    if (x > 127)
+        return 0xFF << 23;
+
+    if (x < -126)
+        return 0x1 << (x + 149);
+    exp = x + 127;
+    ret = exp >> 23;
+    return ret;
 }
 
 int main()
